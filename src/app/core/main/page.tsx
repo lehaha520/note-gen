@@ -53,6 +53,27 @@ function getDefaultLayout(layoutKey: string) {
   }
 }
 
+function getMinSizes(windowWidth: number, leftVisible: boolean, centerVisible: boolean, rightVisible: boolean) {
+  const availableWidth = Math.max(windowWidth, 1)
+  const preferredSizes = {
+    left: Math.min(Math.max(18, (320 / availableWidth) * 100), 40),
+    center: Math.min(Math.max(25, (400 / availableWidth) * 100), 50),
+    right: Math.min(Math.max(15, (280 / availableWidth) * 100), 40),
+  }
+  const visibleMinimumTotal = (
+    (leftVisible ? preferredSizes.left : 0)
+    + (centerVisible ? preferredSizes.center : 0)
+    + (rightVisible ? preferredSizes.right : 0)
+  )
+  const scale = visibleMinimumTotal > 99 ? 99 / visibleMinimumTotal : 1
+
+  return {
+    left: preferredSizes.left * (leftVisible ? scale : 1),
+    center: preferredSizes.center * (centerVisible ? scale : 1),
+    right: preferredSizes.right * (rightVisible ? scale : 1),
+  }
+}
+
 function ResizableWrapper() {
   const { 
     leftSidebarVisible, 
@@ -65,12 +86,12 @@ function ResizableWrapper() {
   const centerPanelRef = useRef<PanelImperativeHandle>(null)
   const rightPanelRef = useRef<PanelImperativeHandle>(null)
   
-  const MIN_LEFT_SIDEBAR_WIDTH_PX = 320
-  const MIN_RIGHT_SIDEBAR_WIDTH_PX = 280
-  const MIN_EDITOR_WIDTH_PX = 400
-  const [minLeftSidebarSize, setMinLeftSidebarSize] = useState(24)
-  const [minRightSidebarSize, setMinRightSidebarSize] = useState(20)
-  const [minEditorSize, setMinEditorSize] = useState(30)
+  const [minSizes, setMinSizes] = useState(() => (
+    typeof window === 'undefined'
+      ? { left: 24, center: 30, right: 20 }
+      : getMinSizes(window.innerWidth, leftSidebarVisible, centerPanelVisible, rightSidebarVisible)
+  ))
+  const { left: minLeftSidebarSize, center: minEditorSize, right: minRightSidebarSize } = minSizes
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(!leftSidebarVisible)
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(!rightSidebarVisible)
 
@@ -86,25 +107,6 @@ function ResizableWrapper() {
   ].filter(Boolean)
   const layoutKey = visiblePanels.join('-')
   
-  const calculateMinSizes = () => {
-    const windowWidth = window.innerWidth
-    const preferredSizes = {
-      left: Math.min(Math.max(18, (MIN_LEFT_SIDEBAR_WIDTH_PX / windowWidth) * 100), 40),
-      center: Math.min(Math.max(25, (MIN_EDITOR_WIDTH_PX / windowWidth) * 100), 50),
-      right: Math.min(Math.max(15, (MIN_RIGHT_SIDEBAR_WIDTH_PX / windowWidth) * 100), 40),
-    }
-    const visibleMinimumTotal = (
-      (leftSidebarVisible ? preferredSizes.left : 0)
-      + (centerPanelVisible ? preferredSizes.center : 0)
-      + (rightSidebarVisible ? preferredSizes.right : 0)
-    )
-    const scale = visibleMinimumTotal > 99 ? 99 / visibleMinimumTotal : 1
-
-    setMinLeftSidebarSize(preferredSizes.left * (leftSidebarVisible ? scale : 1))
-    setMinEditorSize(preferredSizes.center * (centerPanelVisible ? scale : 1))
-    setMinRightSidebarSize(preferredSizes.right * (rightSidebarVisible ? scale : 1))
-  }
-
   // 初始化侧边栏状态
   useEffect(() => {
     initSidebarState()
@@ -112,6 +114,10 @@ function ResizableWrapper() {
 
   // 窗口或可见面板变化时，重新平衡各面板的最小宽度
   useEffect(() => {
+    const calculateMinSizes = () => {
+      setMinSizes(getMinSizes(window.innerWidth, leftSidebarVisible, centerPanelVisible, rightSidebarVisible))
+    }
+
     calculateMinSizes()
 
     window.addEventListener('resize', calculateMinSizes)
