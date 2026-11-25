@@ -53,11 +53,23 @@ export function MobileCanvasEditorScreen({ canvasId }: MobileCanvasEditorScreenP
     useChatStore.getState().setMobileActiveContexts({ canvasId })
   }, [canvasId, pathname])
 
+  useEffect(() => {
+    if (pathname !== '/mobile/canvas/editor') return
+
+    const handleMobileBack = (event: Event) => {
+      event.preventDefault()
+      swipeBackRef.current?.back()
+    }
+
+    window.addEventListener('notegen-mobile-back', handleMobileBack)
+    return () => window.removeEventListener('notegen-mobile-back', handleMobileBack)
+  }, [pathname])
+
   const closeEditor = useCallback(() => {
     setActiveCanvasId(null)
     setSelectionContext(null)
     useChatStore.getState().setMobileActiveContexts({ canvasId: null })
-    router.push('/mobile/canvas')
+    router.replace('/mobile/canvas')
     void Store.load('store.json').then(store => store.set('currentPage', '/mobile/canvas'))
   }, [router, setActiveCanvasId, setSelectionContext])
 

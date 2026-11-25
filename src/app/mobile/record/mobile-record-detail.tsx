@@ -102,6 +102,18 @@ function MobileRecordDetailScreen({ markId, isActive }: MobileRecordDetailProps)
   }, [isActive, markId])
 
   useEffect(() => {
+    if (!isActive) return
+
+    const handleMobileBack = (event: Event) => {
+      event.preventDefault()
+      swipeBackRef.current?.back()
+    }
+
+    window.addEventListener('notegen-mobile-back', handleMobileBack)
+    return () => window.removeEventListener('notegen-mobile-back', handleMobileBack)
+  }, [isActive])
+
+  useEffect(() => {
     if (!isActive || mark !== undefined) return
     let cancelled = false
     void fetchTags().catch(error => console.error('Failed to load record tags:', error))

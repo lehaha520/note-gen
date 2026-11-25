@@ -139,7 +139,7 @@ export function AppFootbar() {
     } else if (item.id === 'canvas') {
       chatState.setMobileActiveContexts({ canvasId: activeCanvasId })
     }
-    router.push(item.url)
+    router.replace(item.url)
     const store = await Store.load('store.json')
     await store.set('currentPage', item.url)
   }, [activeCanvasId, activeFilePath, activeMarkId, isRecording, router])

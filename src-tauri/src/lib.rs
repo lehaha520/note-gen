@@ -150,6 +150,8 @@ pub fn run() {
             record_file::open_record_file,
             #[cfg(target_os = "android")]
             record_file::pick_android_record_file,
+            #[cfg(target_os = "android")]
+            mobile_system_bars::exit_mobile_app,
             start_mcp_stdio_server,
             stop_mcp_server,
             send_mcp_message,

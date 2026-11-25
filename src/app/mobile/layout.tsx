@@ -1,9 +1,11 @@
 'use client'
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { onBackButtonPress } from "@tauri-apps/api/app"
+import { invoke, isTauri } from "@tauri-apps/api/core"
 import useSettingStore from "@/stores/setting"
-import { useEffect, useState } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { applyThemeColors } from "@/lib/theme-utils"
 import { applyAppFontFamily } from "@/lib/font-settings"
@@ -31,6 +33,15 @@ import useCanvasStore from "@/stores/canvas"
 import { PluginHostBridge } from "@/components/plugins/plugin-host-bridge"
 import { InitialSetupScreen } from '@/components/initial-setup/initial-setup-screen'
 import { useInitialSetupStore } from '@/stores/initial-setup'
+import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
+
+const MOBILE_ROOT_ROUTES = new Set([
+  '/mobile/chat',
+  '/mobile/writing',
+  '/mobile/record',
+  '/mobile/canvas',
+])
 
 const WritingScreen = dynamic(
   () => import('./writing/writing-screen').then(module => module.WritingScreen),
@@ -95,6 +106,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname()
+  const router = useRouter()
+  const navigationT = useTranslations('navigation')
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
+  const lastRootBackAtRef = useRef<number | null>(null)
+  const rootBackTimeoutRef = useRef<number | null>(null)
   const searchParams = useSearchParams()
   const isWritingRoute = pathname === '/mobile/writing'
   const isRecordDetailRoute = pathname === '/mobile/record/detail'
@@ -116,6 +133,100 @@ export default function RootLayout({
   const [pluginsReady, setPluginsReady] = useState(false)
   const setupVisible = useInitialSetupStore(state => state.visible)
   const showSetup = pluginsReady && setupVisible
+
+  const clearRootBackPress = useCallback(() => {
+    lastRootBackAtRef.current = null
+    if (rootBackTimeoutRef.current !== null) {
+      window.clearTimeout(rootBackTimeoutRef.current)
+      rootBackTimeoutRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    clearRootBackPress()
+  }, [clearRootBackPress, pathname])
+
+  useEffect(() => {
+    if (!isTauri()) return
+
+    let active = true
+    let unregister: (() => void) | undefined
+
+    void onBackButtonPress(({ canGoBack }) => {
+      if (document.querySelector(
+        '[data-slot="drawer-content"][data-state="open"], [data-slot="dialog-content"][data-state="open"]'
+      )) {
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        }))
+        clearRootBackPress()
+        return
+      }
+
+      const backEvent = new Event('notegen-mobile-back', { cancelable: true })
+      window.dispatchEvent(backEvent)
+      if (backEvent.defaultPrevented) {
+        clearRootBackPress()
+        return
+      }
+
+      const currentPath = pathnameRef.current
+      if (MOBILE_ROOT_ROUTES.has(currentPath)) {
+        const now = Date.now()
+        const previousBackAt = lastRootBackAtRef.current
+        if (previousBackAt !== null && now - previousBackAt <= 2000) {
+          clearRootBackPress()
+          void invoke('exit_mobile_app').catch(error => {
+            console.error('Failed to exit the mobile app:', error)
+            toast.error(navigationT('exitFailed'))
+          })
+          return
+        }
+
+        lastRootBackAtRef.current = now
+        if (rootBackTimeoutRef.current !== null) {
+          window.clearTimeout(rootBackTimeoutRef.current)
+        }
+        rootBackTimeoutRef.current = window.setTimeout(clearRootBackPress, 2000)
+        toast(navigationT('exitHint'), { duration: 2000 })
+        return
+      }
+
+      clearRootBackPress()
+      if (canGoBack) {
+        window.history.back()
+      } else if (currentPath.startsWith('/mobile/setting/pages')) {
+        router.replace('/mobile/setting')
+      } else if (currentPath === '/mobile/setting') {
+        router.replace('/mobile/chat')
+      } else if (currentPath === '/mobile/record/detail') {
+        router.replace('/mobile/record')
+      } else if (currentPath === '/mobile/canvas/editor') {
+        router.replace('/mobile/canvas')
+      } else {
+        router.replace('/mobile/chat')
+      }
+    }).then(listener => {
+      const dispose = () => {
+        void listener.unregister().catch(error => {
+          console.error('Failed to unregister the Android back-button handler:', error)
+        })
+      }
+      if (active) unregister = dispose
+      else dispose()
+    }).catch(error => {
+      console.error('Failed to register the Android back-button handler:', error)
+    })
+
+    return () => {
+      active = false
+      unregister?.()
+      clearRootBackPress()
+    }
+  }, [clearRootBackPress, navigationT, router])
+
   useEffect(() => {
     if (isWritingRoute) {
       setHasWritingCache(true)

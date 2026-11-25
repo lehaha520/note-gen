@@ -121,6 +121,18 @@ export function WritingScreen({ isActive }: { isActive: boolean }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isActive || !isWritingRoute || view !== 'editor') return
+
+    const handleMobileBack = (event: Event) => {
+      event.preventDefault()
+      void closeEditor()
+    }
+
+    window.addEventListener('notegen-mobile-back', handleMobileBack)
+    return () => window.removeEventListener('notegen-mobile-back', handleMobileBack)
+  }, [closeEditor, isActive, isWritingRoute, view])
+
   return (
     <div id="mobile-writing" className='w-full h-full min-h-0 flex flex-col overflow-clip'>
       {deletionProgress?.hasRemote ? (

@@ -5599,6 +5599,8 @@
       "me": "我的",
       "canvas": "画布"
     },
+    "exitHint": "再按一次返回键退出 NoteGen",
+    "exitFailed": "退出应用失败",
     "search": "搜索",
     "githubImageHosting": "Github 图床",
     "login": "登录",

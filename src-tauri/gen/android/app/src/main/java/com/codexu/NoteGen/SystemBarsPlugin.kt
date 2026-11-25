@@ -83,6 +83,14 @@ class SystemBarsPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 
+    @Command
+    fun exitApp(invoke: Invoke) {
+        activity.runOnUiThread {
+            invoke.resolve()
+            activity.finishAffinity()
+        }
+    }
+
     private fun updateSystemBarIconAppearance(lightStatusBar: Boolean, lightNavigationBar: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val statusAppearance = if (lightStatusBar) {

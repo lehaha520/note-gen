@@ -5599,6 +5599,8 @@
       "me": "Me",
       "canvas": "Canvas"
     },
+    "exitHint": "Press back again to exit NoteGen",
+    "exitFailed": "Failed to exit the app",
     "search": "Search",
     "githubImageHosting": "Github Image Hosting",
     "login": "Login",

@@ -73,6 +73,19 @@ pub fn set_mobile_system_bars(
     Ok(())
 }
 
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn exit_mobile_app(app_handle: AppHandle) -> Result<(), String> {
+    let plugin = app_handle
+        .try_state::<AndroidSystemBarsPlugin<Wry>>()
+        .ok_or("Android system bars plugin is not available.".to_string())?;
+
+    plugin
+        .0
+        .run_mobile_plugin::<()>("exitApp", serde_json::json!({}))
+        .map_err(|error| format!("Failed to exit the Android app: {error}"))
+}
+
 #[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub fn set_mobile_system_bars(
